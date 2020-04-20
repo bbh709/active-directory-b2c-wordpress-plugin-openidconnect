@@ -12,7 +12,7 @@ class B2C_Endpoint_Handler {
 		$this->metadata_endpoint = B2C_Settings::metadata_endpoint_begin() . $policy_name;
 		$response = wp_remote_get($this->metadata_endpoint);
 		$decoded_response = json_decode($response['body'], true);
-		if (count($decoded_response) == 0 )
+		if (empty($decoded_response) || !isset($decoded_response) )
 			throw new Exception('Unable to retrieve metadata from ' . $this->metadata_endpoint);
 		
 		$this->metadata = $decoded_response;
@@ -54,15 +54,29 @@ class B2C_Endpoint_Handler {
 	 * Obtains the authorization endpoint from the metadata
 	 * and adds the necessary query arguments.
 	 */
-	public function get_authorization_endpoint() {
+	public function get_authorization_endpoint($return_uri = '') {
+
+		if (!empty($return_uri)) {
+			$return_uri = urlencode($return_uri);
+		}
+				
+		// check if a return uri has been provided.
+		if (isset($_GET[B2C_Settings::REDIRECT_URI_PARAM])) {
+			// uri might already have been provided in the current url. If that's the case then use it 
+			$return_uri = urlencode($_GET[B2C_Settings::REDIRECT_URI_PARAM]);	
+		}
+		if (empty($return_uri)) {
+			// no return provided so return the default one
+			$return_uri = B2C_Settings::$redirect_uri;
+		}
 
 		$authorization_endpoint = $this->metadata['authorization_endpoint'].
 											'&response_type='.B2C_Settings::$response_type.
 											'&client_id='.B2C_Settings::$clientID.
-											'&redirect_uri='.B2C_Settings::$redirect_uri.
+											'&redirect_uri='.$return_uri.
 											'&response_mode='.B2C_Settings::$response_mode.
 											'&scope='.B2C_Settings::$scope;
-		return $authorization_endpoint;
+		return apply_filters('b2c_authorization_endpoint', $authorization_endpoint);
 	}
 	
 	/** 
